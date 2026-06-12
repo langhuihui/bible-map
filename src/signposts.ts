@@ -1,6 +1,11 @@
 import maplibregl from "maplibre-gl";
 import type { Journey, Site } from "./types";
-import { isMobile, popupMaxWidth, popupOffset } from "./responsive";
+import {
+  isMobile,
+  popupMaxWidth,
+  popupOffset,
+  prefersReducedMotion,
+} from "./responsive";
 
 export interface SignpostsApi {
   setActiveJourney(journeyId: string | null): void;
@@ -15,6 +20,7 @@ interface SignpostEntry {
   site: Site;
   marker: maplibregl.Marker;
   el: HTMLElement;
+  onMap: boolean;
 }
 
 function routeSourceId(journeyId: string): string {
@@ -132,9 +138,9 @@ export function initSignposts(
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": "#ffffff",
-        "line-width": 6,
-        "line-opacity": 0.55,
-        "line-blur": 1,
+        "line-width": isMobile() ? 5 : 6,
+        "line-opacity": isMobile() ? 0.45 : 0.55,
+        "line-blur": isMobile() ? 0 : 1,
       },
     });
     map.addLayer({
@@ -150,24 +156,33 @@ export function initSignposts(
     });
   }
 
-  // 虚线流动动画：循环平移 dash 相位，使虚线沿 sites 顺序方向流动
-  const DASH_FPS = 18;
+  // 虚线流动动画：仅对当前可见路线更新，页面隐藏或减弱动效时暂停
+  const DASH_FPS = isMobile() ? 12 : 18;
   let dashStep = 0;
   let lastDashTime = 0;
+  let dashAnimating = !prefersReducedMotion();
+
   function animateDash(time: number): void {
-    if (time - lastDashTime >= 1000 / DASH_FPS) {
+    if (
+      dashAnimating &&
+      activeJourneyId &&
+      !document.hidden &&
+      time - lastDashTime >= 1000 / DASH_FPS
+    ) {
       lastDashTime = time;
       dashStep = (dashStep + 1) % DASH_STEPS.length;
-      for (const journey of journeys) {
-        const layerId = `${routeSourceId(journey.id)}-line`;
-        if (map.getLayer(layerId)) {
-          map.setPaintProperty(layerId, "line-dasharray", DASH_STEPS[dashStep]);
-        }
+      const layerId = `${routeSourceId(activeJourneyId)}-line`;
+      if (map.getLayer(layerId)) {
+        map.setPaintProperty(layerId, "line-dasharray", DASH_STEPS[dashStep]);
       }
     }
     requestAnimationFrame(animateDash);
   }
   requestAnimationFrame(animateDash);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) lastDashTime = 0;
+  });
 
   function setHighlight(entry: SignpostEntry | null): void {
     if (highlighted) highlighted.el.classList.remove("signpost-highlighted");
@@ -207,9 +222,7 @@ export function initSignposts(
         anchor: "bottom",
         pitchAlignment: "viewport",
         rotationAlignment: "viewport",
-      })
-        .setLngLat(site.coordinates)
-        .addTo(map);
+      }).setLngLat(site.coordinates);
 
       const entry: SignpostEntry = {
         journeyId: journey.id,
@@ -217,6 +230,7 @@ export function initSignposts(
         site,
         marker,
         el,
+        onMap: false,
       };
       el.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -236,6 +250,16 @@ export function initSignposts(
     );
   }
 
+  function setMarkerVisible(entry: SignpostEntry, visible: boolean): void {
+    if (visible === entry.onMap) return;
+    if (visible) {
+      entry.marker.addTo(map);
+    } else {
+      entry.marker.remove();
+    }
+    entry.onMap = visible;
+  }
+
   function setActiveJourney(journeyId: string | null): void {
     activeJourneyId = journeyId;
     for (const journey of journeys) {
@@ -246,9 +270,10 @@ export function initSignposts(
       map.setLayoutProperty(`${id}-glow`, "visibility", visibility);
     }
     for (const entry of entries) {
-      const visible =
-        activeJourneyId === null || entry.journeyId === activeJourneyId;
-      entry.el.style.display = visible ? "" : "none";
+      setMarkerVisible(
+        entry,
+        activeJourneyId === null || entry.journeyId === activeJourneyId,
+      );
     }
     if (highlighted && activeJourneyId && highlighted.journeyId !== activeJourneyId) {
       setHighlight(null);

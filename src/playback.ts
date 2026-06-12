@@ -140,14 +140,17 @@ export function initPlayback(
 
   // ---------- 进度条 ----------
   let nodeEls: HTMLElement[] = [];
+  let segEls: HTMLElement[] = [];
 
   function buildTrack(): void {
     trackEl.innerHTML = "";
     nodeEls = [];
+    segEls = [];
     activeJourney.sites.forEach((site, i) => {
       if (i > 0) {
         const seg = document.createElement("div");
         seg.className = "pb-seg";
+        segEls.push(seg);
         trackEl.appendChild(seg);
       }
       const node = document.createElement("button");
@@ -188,7 +191,7 @@ export function initPlayback(
       n.classList.toggle("active", i === index);
       n.classList.toggle("passed", i < index);
     });
-    trackEl.querySelectorAll(".pb-seg").forEach((seg, i) => {
+    segEls.forEach((seg, i) => {
       seg.classList.toggle("passed", i < index);
     });
     siteNameEl.textContent = activeJourney.sites[index]?.name ?? "";

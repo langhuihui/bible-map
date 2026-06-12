@@ -1,7 +1,9 @@
 import type maplibregl from "maplibre-gl";
+import { isMobile } from "./responsive";
 
 export const TERRAIN_SOURCE = "terrain-dem";
-const PROBE_MS = 4000;
+const PROBE_MS = 2500;
+const CONFIG_CACHE_KEY = "bible-map:map-config-v1";
 
 // 耶路撒冷附近 z8 瓦片，用于探测可用性
 const PROBE_Z = 8;
@@ -216,19 +218,121 @@ async function resolveTerrain(): Promise<TerrainConfig | undefined> {
   return undefined;
 }
 
+interface CachedMapConfig {
+  sourceId: string;
+  terrainLabel?: string;
+}
+
+function readConfigCache(): CachedMapConfig | null {
+  try {
+    const raw = sessionStorage.getItem(CONFIG_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CachedMapConfig;
+  } catch {
+    return null;
+  }
+}
+
+function terrainLabelOf(terrain?: TerrainConfig): string | undefined {
+  if (!terrain) return undefined;
+  return TERRAIN_CANDIDATES.find((t) => t.tiles[0] === terrain.tiles[0])?.label;
+}
+
+function writeConfigCache(sourceId: string, terrain?: TerrainConfig): void {
+  try {
+    sessionStorage.setItem(
+      CONFIG_CACHE_KEY,
+      JSON.stringify({
+        sourceId,
+        terrainLabel: terrainLabelOf(terrain),
+      } satisfies CachedMapConfig),
+    );
+  } catch {
+    // 存储不可用时忽略
+  }
+}
+
+function buildConfigFromCache(
+  cached: CachedMapConfig,
+  terrain?: TerrainConfig,
+): ResolvedMapConfig | null {
+  if (cached.sourceId === "tianditu") {
+    const token = import.meta.env.VITE_TIANDITU_TOKEN?.trim();
+    if (!token) return null;
+    return {
+      kind: "raster",
+      style: buildTiandituStyle(token),
+      label: "天地图",
+      terrain,
+    };
+  }
+
+  const style = STYLE_CANDIDATES.find((s) => s.id === cached.sourceId);
+  if (style) {
+    return {
+      kind: "style-url",
+      styleUrl: style.url,
+      label: style.label,
+      terrain,
+    };
+  }
+
+  const raster = RASTER_CANDIDATES.find((c) => c.id === cached.sourceId);
+  if (raster) {
+    return {
+      kind: "raster",
+      style: buildRasterStyle(raster, terrain),
+      label: raster.label,
+      terrain,
+    };
+  }
+
+  if (cached.sourceId === "demotiles") {
+    return {
+      kind: "style-url",
+      styleUrl: "https://demotiles.maplibre.org/style.json",
+      label: "MapLibre Demo",
+      terrain,
+    };
+  }
+
+  return null;
+}
+
+async function resolveTerrainFromCache(
+  cached: CachedMapConfig,
+): Promise<TerrainConfig | undefined> {
+  if (!cached.terrainLabel) return undefined;
+  const hit = TERRAIN_CANDIDATES.find((t) => t.label === cached.terrainLabel);
+  if (hit) return hit;
+  return resolveTerrain();
+}
+
 export async function resolveMapConfig(): Promise<ResolvedMapConfig> {
+  const cached = readConfigCache();
+  if (cached) {
+    const terrain = await resolveTerrainFromCache(cached);
+    const config = buildConfigFromCache(cached, terrain);
+    if (config) {
+      console.info(`[bible-map] 底图: ${config.label} (缓存)`);
+      return config;
+    }
+  }
+
   const terrainPromise = resolveTerrain();
 
   const tiandituToken = import.meta.env.VITE_TIANDITU_TOKEN?.trim();
   if (tiandituToken) {
     // 天地图浏览器端 Key 禁止服务端 fetch，且 CORS 探测不可靠，配置后直接采用
     console.info("[bible-map] 底图: 天地图");
-    return {
+    const config: ResolvedMapConfig = {
       kind: "raster",
       style: buildTiandituStyle(tiandituToken),
       label: "天地图",
       terrain: await terrainPromise,
     };
+    writeConfigCache("tianditu", config.terrain);
+    return config;
   }
 
   const styleProbes = await Promise.all(
@@ -240,12 +344,14 @@ export async function resolveMapConfig(): Promise<ResolvedMapConfig> {
   const styleHit = styleProbes.find((r) => r.ok);
   if (styleHit) {
     console.info(`[bible-map] 底图: ${styleHit.s.label}`);
-    return {
+    const config: ResolvedMapConfig = {
       kind: "style-url",
       styleUrl: styleHit.s.url,
       label: styleHit.s.label,
       terrain: await terrainPromise,
     };
+    writeConfigCache(styleHit.s.id, config.terrain);
+    return config;
   }
 
   const rasterProbes = await Promise.all(
@@ -259,21 +365,25 @@ export async function resolveMapConfig(): Promise<ResolvedMapConfig> {
 
   if (rasterHit) {
     console.info(`[bible-map] 底图: ${rasterHit.c.label}`);
-    return {
+    const config: ResolvedMapConfig = {
       kind: "raster",
       style: buildRasterStyle(rasterHit.c, terrain),
       label: rasterHit.c.label,
       terrain,
     };
+    writeConfigCache(rasterHit.c.id, terrain);
+    return config;
   }
 
   console.warn("[bible-map] 所有底图源不可达，回退 demotiles");
-  return {
+  const fallback: ResolvedMapConfig = {
     kind: "style-url",
     styleUrl: "https://demotiles.maplibre.org/style.json",
     label: "MapLibre Demo",
     terrain,
   };
+  writeConfigCache("demotiles", terrain);
+  return fallback;
 }
 
 export function applyTerrain(
@@ -289,7 +399,10 @@ export function applyTerrain(
       encoding: terrain.encoding,
       maxzoom: terrain.maxzoom ?? 15,
     });
-    map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1.5 });
+    map.setTerrain({
+      source: TERRAIN_SOURCE,
+      exaggeration: isMobile() ? 1.2 : 1.5,
+    });
   } catch (err) {
     console.warn("[bible-map] 地形加载失败:", err);
   }

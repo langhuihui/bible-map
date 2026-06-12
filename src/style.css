@@ -84,7 +84,7 @@ body {
   padding: 14px 16px;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  max-width: 320px;
+  max-width: 640px;
 }
 
 .site-popup .maplibregl-popup-tip {

@@ -1,7 +1,12 @@
 const MOBILE_MQ = window.matchMedia("(max-width: 600px)");
+const REDUCED_MOTION_MQ = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 export function isMobile(): boolean {
   return MOBILE_MQ.matches;
+}
+
+export function prefersReducedMotion(): boolean {
+  return REDUCED_MOTION_MQ.matches;
 }
 
 export interface MapInsets {
@@ -36,7 +41,7 @@ export function popupMaxWidth(): string {
   if (isMobile()) {
     return `${Math.min(window.innerWidth - 24, 420)}px`;
   }
-  return "320px";
+  return "640px";
 }
 
 export function defaultPitch(): number {
