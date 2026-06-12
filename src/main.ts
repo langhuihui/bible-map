@@ -4,72 +4,75 @@ import "./style.css";
 import { journeys } from "./data/journeys";
 import { initSignposts } from "./signposts";
 import { initPlayback } from "./playback";
+import {
+  applyTerrain,
+  ensureSky,
+  resolveMapConfig,
+} from "./mapSources";
 
-const FALLBACK_STYLE = "https://demotiles.maplibre.org/style.json";
-const TERRAIN_SOURCE = "terrain-dem";
+export let map: maplibregl.Map;
 
-// 优先使用 OSM raster 瓦片，保证现代城市/地名标注
-const osmStyle: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    },
-    [TERRAIN_SOURCE]: {
-      type: "raster-dem",
-      tiles: [
-        "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      encoding: "terrarium",
-      maxzoom: 15,
-    },
-  },
-  sky: {
-    "sky-color": "#1a2b4a",
-    "horizon-color": "#3a5577",
-    "fog-color": "#2a3a55",
-    "sky-horizon-blend": 0.6,
-    "horizon-fog-blend": 0.7,
-    "fog-ground-blend": 0.6,
-  },
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: { "background-color": "#0d1117" },
-    },
-    {
-      id: "osm",
-      type: "raster",
-      source: "osm",
-    },
-  ],
-};
+async function bootstrap(): Promise<void> {
+  const loading = document.createElement("div");
+  loading.className = "map-loading";
+  loading.textContent = "正在连接地图服务…";
+  document.getElementById("map")?.appendChild(loading);
 
-export const map = new maplibregl.Map({
-  container: "map",
-  style: osmStyle,
-  center: [33, 33],
-  zoom: 6,
-  pitch: 60,
-  bearing: 0,
-  maxPitch: 75,
-  attributionControl: { compact: true },
-  dragPan: false,
-  dragRotate: false,
-  touchZoomRotate: true,
-  touchPitch: true,
+  const config = await resolveMapConfig();
+  loading.remove();
+
+  const mapOptions: maplibregl.MapOptions = {
+    container: "map",
+    center: [33, 33],
+    zoom: 6,
+    pitch: 60,
+    bearing: 0,
+    maxPitch: 75,
+    attributionControl: { compact: true },
+    dragPan: false,
+    dragRotate: false,
+    touchZoomRotate: true,
+    touchPitch: true,
+    transformRequest: (url) => {
+      if (url.includes("tianditu.gov.cn")) {
+        return { url, headers: { Referer: "https://www.tianditu.gov.cn/" } };
+      }
+      return { url };
+    },
+  };
+
+  if (config.kind === "style-url") {
+    mapOptions.style = config.styleUrl;
+  } else {
+    mapOptions.style = config.style;
+  }
+
+  map = new maplibregl.Map(mapOptions);
+
+  setupCustomMapControls(map);
+  map.addControl(
+    new maplibregl.NavigationControl({ visualizePitch: true }),
+    "top-right",
+  );
+
+  map.on("load", () => {
+    ensureSky(map);
+    applyTerrain(map, config.terrain);
+    const signposts = initSignposts(map, journeys);
+    initPlayback(map, journeys, signposts);
+    window.dispatchEvent(new CustomEvent("map-ready", { detail: { map } }));
+  });
+
+  map.on("error", (e) => {
+    if (e.error?.message?.includes("Failed to load")) {
+      console.warn("[bible-map] 瓦片加载错误:", e.error.message);
+    }
+  });
+}
+
+bootstrap().catch((err) => {
+  console.error("[bible-map] 地图初始化失败:", err);
 });
-
-// 默认拖拽旋转；按住空格拖拽平移
-setupCustomMapControls(map);
-
-map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
 
 function setupCustomMapControls(map: maplibregl.Map): void {
   const canvas = map.getCanvas();
@@ -96,7 +99,10 @@ function setupCustomMapControls(map: maplibregl.Map): void {
 
   window.addEventListener("keydown", (e) => {
     if (e.code !== "Space" || e.repeat) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement
+    ) {
       return;
     }
     spaceHeld = true;
@@ -143,7 +149,9 @@ function setupCustomMapControls(map: maplibregl.Map): void {
     }
 
     map.setBearing(startBearing + dx * 0.6);
-    map.setPitch(Math.min(map.getMaxPitch(), Math.max(0, startPitch - dy * 0.4)));
+    map.setPitch(
+      Math.min(map.getMaxPitch(), Math.max(0, startPitch - dy * 0.4)),
+    );
   });
 
   window.addEventListener("mouseup", () => {
@@ -154,18 +162,3 @@ function setupCustomMapControls(map: maplibregl.Map): void {
     map.fire("dragend");
   });
 }
-
-map.on("load", () => {
-  map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1.5 });
-  const signposts = initSignposts(map, journeys);
-  initPlayback(map, journeys, signposts);
-  window.dispatchEvent(new CustomEvent("map-ready", { detail: { map } }));
-});
-
-// OSM 瓦片不可用时回退到 demotiles 样式
-map.once("error", (e) => {
-  console.warn("Map error, falling back to demotiles style:", e.error);
-  if (!map.isStyleLoaded()) {
-    map.setStyle(FALLBACK_STYLE);
-  }
-});

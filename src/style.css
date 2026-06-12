@@ -28,6 +28,19 @@ body {
   inset: 0;
 }
 
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 17, 23, 0.92);
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
 /* 底部控制条（后续模块填充内容） */
 #control-bar {
   position: fixed;
