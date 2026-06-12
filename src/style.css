@@ -323,6 +323,41 @@ body {
     height: 14px;
   }
 
+  /* 播放中收起，避免与站点气泡重叠 */
+  #control-bar.playback.pb-collapsed {
+    padding: 8px
+      calc(12px + var(--safe-right))
+      calc(8px + var(--safe-bottom))
+      calc(12px + var(--safe-left));
+    gap: 0;
+  }
+
+  #control-bar.playback.pb-collapsed .pb-tabs,
+  #control-bar.playback.pb-collapsed .pb-prev,
+  #control-bar.playback.pb-collapsed .pb-next,
+  #control-bar.playback.pb-collapsed .pb-speed,
+  #control-bar.playback.pb-collapsed .pb-track {
+    display: none;
+  }
+
+  #control-bar.playback.pb-collapsed .pb-main {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  #control-bar.playback.pb-collapsed .pb-track-wrap {
+    order: 0;
+    flex: 1 1 auto;
+  }
+
+  #control-bar.playback.pb-collapsed .pb-site-name {
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .maplibregl-ctrl-top-right {
     top: calc(8px + var(--safe-top));
     right: calc(8px + var(--safe-right));

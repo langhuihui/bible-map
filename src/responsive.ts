@@ -20,7 +20,10 @@ export function fitBoundsPadding(): MapInsets {
 
 export function flyToPadding(): MapInsets {
   if (isMobile()) {
-    return { top: 72, left: 0, right: 0, bottom: 220 };
+    const collapsed = document
+      .getElementById("control-bar")
+      ?.classList.contains("pb-collapsed");
+    return { top: 72, left: 0, right: 0, bottom: collapsed ? 64 : 220 };
   }
   return { top: 0, left: 0, right: 0, bottom: 200 };
 }

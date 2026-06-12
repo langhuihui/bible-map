@@ -4,6 +4,7 @@ import {
   defaultPitch,
   fitBoundsPadding,
   flyToPadding,
+  isMobile,
   syncControlBarHeight,
 } from "./responsive";
 
@@ -248,9 +249,16 @@ export function initPlayback(
     }, DWELL_MS / SPEEDS[speedIdx]);
   }
 
+  function setPanelCollapsed(collapsed: boolean): void {
+    if (!isMobile() || !root) return;
+    root.classList.toggle("pb-collapsed", collapsed);
+    syncControlBarHeight();
+  }
+
   function setPlaying(v: boolean): void {
     playing = v;
     btnPlay.textContent = v ? "⏸" : "▶";
+    setPanelCollapsed(v);
     if (!v) {
       clearTimers();
     }
