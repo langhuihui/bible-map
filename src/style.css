@@ -4,6 +4,11 @@
   --text: #e6edf3;
   --accent: #d4a843;
   --border: rgba(212, 168, 67, 0.25);
+  --control-bar-offset: 180px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -26,6 +31,10 @@ body {
 #map {
   position: absolute;
   inset: 0;
+}
+
+#map canvas {
+  touch-action: none;
 }
 
 .map-loading {
@@ -245,14 +254,130 @@ body {
 
 @media (max-width: 600px) {
   #control-bar.playback {
-    left: 12px;
-    right: 12px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     transform: none;
     max-width: none;
+    width: auto;
+    padding: 12px
+      calc(14px + var(--safe-right))
+      calc(12px + var(--safe-bottom))
+      calc(14px + var(--safe-left));
+    border-radius: 16px 16px 0 0;
+    gap: 10px;
+  }
+
+  .pb-tabs {
+    margin: 0 -4px;
+    padding: 0 4px 2px;
+  }
+
+  .pb-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    min-height: 36px;
   }
 
   .pb-main {
-    overflow-x: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  .pb-track-wrap {
+    order: -1;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .pb-site-name {
+    font-size: 13px;
+    min-height: 18px;
+  }
+
+  .pb-track {
+    height: 28px;
+  }
+
+  .pb-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .pb-play {
+    width: 50px;
+    height: 50px;
+  }
+
+  .pb-speed {
+    min-width: 44px;
+    height: 44px;
+    font-size: 13px;
+  }
+
+  .pb-node {
+    width: 14px;
+    height: 14px;
+  }
+
+  .maplibregl-ctrl-top-right {
+    top: calc(8px + var(--safe-top));
+    right: calc(8px + var(--safe-right));
+  }
+
+  .maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .signpost-board {
+    font-size: 11px;
+    padding: 3px 8px 3px 5px;
+    gap: 4px;
+  }
+
+  .signpost-number {
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  .signpost-pole {
+    height: 26px;
+  }
+
+  .signpost:hover {
+    transform: none;
+  }
+
+  .site-popup .maplibregl-popup-content {
+    max-width: none;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .site-popup-body {
+    max-height: min(36vh, 280px);
+  }
+
+  .site-popup--mobile .maplibregl-popup-content {
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .site-popup-name {
+    font-size: 15px;
+  }
+
+  .site-popup-event-title {
+    font-size: 13px;
+  }
+
+  .site-popup-event-desc,
+  .site-popup-quote {
+    font-size: 12px;
   }
 }
 

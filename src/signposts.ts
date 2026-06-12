@@ -1,5 +1,6 @@
 import maplibregl from "maplibre-gl";
 import type { Journey, Site } from "./types";
+import { isMobile, popupMaxWidth, popupOffset } from "./responsive";
 
 export interface SignpostsApi {
   setActiveJourney(journeyId: string | null): void;
@@ -182,10 +183,12 @@ export function initSignposts(
   function openPopupFor(entry: SignpostEntry): void {
     closePopup();
     popup = new maplibregl.Popup({
-      className: "site-popup",
-      anchor: "bottom",
-      offset: 64,
-      maxWidth: "320px",
+      className: isMobile() ? "site-popup site-popup--mobile" : "site-popup",
+      anchor: isMobile() ? "top" : "bottom",
+      offset: popupOffset(),
+      maxWidth: popupMaxWidth(),
+      closeButton: true,
+      closeOnClick: false,
     })
       .setLngLat(entry.site.coordinates)
       .setHTML(buildPopupHtml(entry.site))

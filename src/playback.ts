@@ -1,5 +1,11 @@
 import maplibregl from "maplibre-gl";
 import type { Journey, Site } from "./types";
+import {
+  defaultPitch,
+  fitBoundsPadding,
+  flyToPadding,
+  syncControlBarHeight,
+} from "./responsive";
 
 // 与并行模块 signposts.ts 的 API 契约保持一致（本地声明，避免编译依赖）
 export interface SignpostsApi {
@@ -45,8 +51,8 @@ function fitJourneyView(map: maplibregl.Map, journey: Journey): void {
   );
 
   map.fitBounds(bounds, {
-    padding: { top: 60, bottom: 240, left: 80, right: 80 },
-    pitch: 60,
+    padding: fitBoundsPadding(),
+    pitch: defaultPitch(),
     duration: 1500,
     maxZoom: 9,
   });
@@ -218,12 +224,11 @@ export function initPlayback(
     map.flyTo({
       center: site.coordinates,
       zoom: zoomForSite(activeJourney, index),
-      pitch: 60,
+      pitch: defaultPitch(),
       bearing,
       speed: 0.9,
       essential: true,
-      // 气泡区域留白，重点保持画面中央偏下
-      padding: { top: 0, left: 0, right: 0, bottom: 200 },
+      padding: flyToPadding(),
     });
   }
 
@@ -295,4 +300,7 @@ export function initPlayback(
 
   // ---------- 初始化 ----------
   selectJourney(journeys[0]);
+  syncControlBarHeight();
+  window.addEventListener("resize", syncControlBarHeight);
+  new ResizeObserver(syncControlBarHeight).observe(root);
 }

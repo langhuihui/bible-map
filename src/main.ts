@@ -9,6 +9,7 @@ import {
   ensureSky,
   resolveMapConfig,
 } from "./mapSources";
+import { defaultPitch } from "./responsive";
 
 export let map: maplibregl.Map;
 
@@ -25,7 +26,7 @@ async function bootstrap(): Promise<void> {
     container: "map",
     center: [33, 33],
     zoom: 6,
-    pitch: 60,
+    pitch: defaultPitch(),
     bearing: 0,
     maxPitch: 75,
     attributionControl: { compact: true },
@@ -82,6 +83,7 @@ function setupCustomMapControls(map: maplibregl.Map): void {
   let spaceHeld = false;
   let dragging = false;
   let mode: "pan" | "rotate" | null = null;
+  let activePointerId: number | null = null;
   let startX = 0;
   let startY = 0;
   let startBearing = 0;
@@ -95,6 +97,33 @@ function setupCustomMapControls(map: maplibregl.Map): void {
     } else {
       canvas.style.cursor = "";
     }
+  }
+
+  function endDrag(): void {
+    if (!dragging) return;
+    dragging = false;
+    mode = null;
+    activePointerId = null;
+    updateCursor();
+    map.fire("dragend");
+  }
+
+  function applyDrag(clientX: number, clientY: number): void {
+    if (!dragging || !mode) return;
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+
+    if (mode === "pan") {
+      map.panBy([-dx, -dy], { animate: false });
+      startX = clientX;
+      startY = clientY;
+      return;
+    }
+
+    map.setBearing(startBearing + dx * 0.6);
+    map.setPitch(
+      Math.min(map.getMaxPitch(), Math.max(0, startPitch - dy * 0.4)),
+    );
   }
 
   window.addEventListener("keydown", (e) => {
@@ -118,47 +147,43 @@ function setupCustomMapControls(map: maplibregl.Map): void {
 
   window.addEventListener("blur", () => {
     spaceHeld = false;
-    dragging = false;
-    mode = null;
+    endDrag();
     updateCursor();
   });
 
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button !== 0) return;
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) {
+      endDrag();
+      return;
+    }
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
     dragging = true;
+    activePointerId = e.pointerId;
     mode = spaceHeld ? "pan" : "rotate";
     startX = e.clientX;
     startY = e.clientY;
     startBearing = map.getBearing();
     startPitch = map.getPitch();
     updateCursor();
+    canvas.setPointerCapture(e.pointerId);
     map.fire("dragstart", { originalEvent: e });
     e.preventDefault();
   });
 
-  window.addEventListener("mousemove", (e) => {
-    if (!dragging || !mode) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    if (mode === "pan") {
-      map.panBy([-dx, -dy], { animate: false });
-      startX = e.clientX;
-      startY = e.clientY;
-      return;
-    }
-
-    map.setBearing(startBearing + dx * 0.6);
-    map.setPitch(
-      Math.min(map.getMaxPitch(), Math.max(0, startPitch - dy * 0.4)),
-    );
+  canvas.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== activePointerId) return;
+    applyDrag(e.clientX, e.clientY);
   });
 
-  window.addEventListener("mouseup", () => {
-    if (!dragging) return;
-    dragging = false;
-    mode = null;
-    updateCursor();
-    map.fire("dragend");
+  canvas.addEventListener("pointerup", (e) => {
+    if (e.pointerId !== activePointerId) return;
+    canvas.releasePointerCapture(e.pointerId);
+    endDrag();
+  });
+
+  canvas.addEventListener("pointercancel", (e) => {
+    if (e.pointerId !== activePointerId) return;
+    endDrag();
   });
 }
