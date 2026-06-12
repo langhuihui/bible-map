@@ -395,12 +395,12 @@ body {
 
   .site-popup .maplibregl-popup-content {
     max-width: none;
-    padding: 16px;
+    padding: 12px 14px;
     border-radius: 14px;
   }
 
   .site-popup-body {
-    max-height: min(36vh, 280px);
+    max-height: min(24vh, 180px);
   }
 
   .site-popup--mobile .maplibregl-popup-content {
@@ -408,7 +408,16 @@ body {
   }
 
   .site-popup-name {
-    font-size: 15px;
+    font-size: 14px;
+  }
+
+  .site-popup-events {
+    margin-top: 8px;
+    gap: 8px;
+  }
+
+  .site-popup-event {
+    padding-top: 6px;
   }
 
   .site-popup-event-title {
