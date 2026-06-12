@@ -5,10 +5,10 @@ import { journeys } from "./data/journeys";
 import { initSignposts } from "./signposts";
 import { initPlayback } from "./playback";
 import {
-  applyTerrain,
   ensureSky,
   resolveMapConfig,
 } from "./mapSources";
+import { enableGlobe, initMapModeControls } from "./mapMode";
 import { defaultPitch } from "./responsive";
 
 export let map: maplibregl.Map;
@@ -57,8 +57,9 @@ async function bootstrap(): Promise<void> {
   );
 
   map.on("load", () => {
+    enableGlobe(map);
     ensureSky(map);
-    applyTerrain(map, config.terrain);
+    initMapModeControls(map);
     const signposts = initSignposts(map, journeys);
     initPlayback(map, journeys, signposts);
     window.dispatchEvent(new CustomEvent("map-ready", { detail: { map } }));

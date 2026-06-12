@@ -1,12 +1,22 @@
 const MOBILE_MQ = window.matchMedia("(max-width: 600px)");
 const REDUCED_MOTION_MQ = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+let terrainModeEnabled = false;
+
 export function isMobile(): boolean {
   return MOBILE_MQ.matches;
 }
 
 export function prefersReducedMotion(): boolean {
   return REDUCED_MOTION_MQ.matches;
+}
+
+export function setTerrainModeEnabled(enabled: boolean): void {
+  terrainModeEnabled = enabled;
+}
+
+export function isTerrainModeEnabled(): boolean {
+  return terrainModeEnabled;
 }
 
 export interface MapInsets {
@@ -23,6 +33,14 @@ export function fitBoundsPadding(): MapInsets {
   return { top: 60, bottom: 240, left: 80, right: 80 };
 }
 
+function controlBarBottomInset(): number {
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--control-bar-offset")
+    .trim();
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 200;
+}
+
 export function flyToPadding(): MapInsets {
   if (isMobile()) {
     const collapsed = document
@@ -30,7 +48,13 @@ export function flyToPadding(): MapInsets {
       ?.classList.contains("pb-collapsed");
     return { top: 72, left: 0, right: 0, bottom: collapsed ? 64 : 220 };
   }
-  return { top: 0, left: 0, right: 0, bottom: 200 };
+  // 播放聚焦：上方为气泡留空，路牌靠下显示
+  return {
+    top: 320,
+    left: 0,
+    right: 0,
+    bottom: controlBarBottomInset(),
+  };
 }
 
 export function popupOffset(): number {
@@ -45,7 +69,10 @@ export function popupMaxWidth(): string {
 }
 
 export function defaultPitch(): number {
-  return isMobile() ? 50 : 60;
+  if (terrainModeEnabled) {
+    return isMobile() ? 50 : 60;
+  }
+  return isMobile() ? 30 : 40;
 }
 
 /** 同步控制条高度，供弹窗 bottom 留白计算 */

@@ -58,6 +58,9 @@ function buildSignpostEl(site: Site, color: string, order: number): HTMLElement 
   el.className = "signpost";
   el.style.setProperty("--signpost-color", color);
 
+  const inner = document.createElement("div");
+  inner.className = "signpost-inner";
+
   const board = document.createElement("div");
   board.className = "signpost-board";
 
@@ -74,8 +77,8 @@ function buildSignpostEl(site: Site, color: string, order: number): HTMLElement 
   const pole = document.createElement("div");
   pole.className = "signpost-pole";
 
-  el.appendChild(board);
-  el.appendChild(pole);
+  inner.append(board, pole);
+  el.appendChild(inner);
   return el;
 }
 

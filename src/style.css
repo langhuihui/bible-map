@@ -363,6 +363,11 @@ body {
     right: calc(8px + var(--safe-right));
   }
 
+  .map-mode-toggle {
+    top: calc(8px + var(--safe-top));
+    left: calc(8px + var(--safe-left));
+  }
+
   .maplibregl-ctrl-group button {
     width: 40px;
     height: 40px;
@@ -384,7 +389,7 @@ body {
     height: 26px;
   }
 
-  .signpost:hover {
+  .signpost:hover .signpost-inner {
     transform: none;
   }
 
@@ -416,12 +421,15 @@ body {
   }
 }
 
-/* 路牌 marker */
+/* 路牌 marker：外层由 MapLibre 用 transform 定位，不能加 transition */
 .signpost {
+  cursor: pointer;
+}
+
+.signpost-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
   transition: transform 0.25s ease, filter 0.25s ease;
   transform-origin: bottom center;
 }
@@ -473,14 +481,17 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-.signpost:hover {
+.signpost:hover .signpost-inner {
   transform: scale(1.12);
 }
 
-.signpost-highlighted {
+.signpost-highlighted .signpost-inner {
   transform: scale(1.25);
   filter: drop-shadow(0 0 10px var(--signpost-color, var(--accent)))
     drop-shadow(0 0 22px var(--signpost-color, var(--accent)));
+}
+
+.signpost-highlighted {
   z-index: 5;
 }
 
@@ -540,4 +551,37 @@ body {
   padding-left: 8px;
   border-left: 2px solid var(--border);
   line-height: 1.5;
+}
+
+/* 左上角 3D 地形开关 */
+.map-mode-toggle {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.map-mode-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.map-mode-toggle[aria-pressed="true"] {
+  background: rgba(212, 168, 67, 0.22);
+  border-color: var(--border);
+}
+
+.map-mode-toggle:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
